@@ -33,7 +33,7 @@
 
 ## 이미지 분할 모델 (Image Segmentation)
 
-#### 5. Caffe 기반 Unet
+#### 5. Unet
   - 목적 : 이미지 내의 사람 영역 인식
   - 학습 데이터 : 다양한 크기와 자세인 사람(전신, 상반신) 이미지 (supervisely human)
     - https://www.kaggle.com/datasets/tapakah68/supervisely-filtered-segmentation-person-dataset
