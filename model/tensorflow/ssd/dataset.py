@@ -7,7 +7,7 @@ import random
 
 from box_utils import compute_target 
 from box_utils_numpy import compute_target as compute_target_numpy
-from image_utils import random_resize, random_translate, random_brightness, padding
+from image_utils import random_translate, random_brightness, padding, random_zoomout, random_zoomin, random_shuffle_rgb
 from functools import partial
 
 
@@ -91,7 +91,7 @@ class VOCDataset():
             boxes: numpy array of shape (num_gt, 4)
             labels: numpy array of shape (num_gt,)
         """
-        h, w = orig_shape
+        w, h = orig_shape
         # filename = self.ids[index]
         # anno_path = os.path.join(self.anno_dir, filename + '.xml')
         # objects = ET.parse(anno_path).findall('object')
@@ -135,22 +135,26 @@ class VOCDataset():
             # img, orig_shape = self._get_image(index)
             filename = indices[index]
             org_img = self._get_image(index)
-            w, h = org_img.size
-            boxes, labels = self._get_annotation(index, (h, w))
+            boxes, labels = self._get_annotation(index, org_img.size)
 
             if self.augmentation and random.random() < 0.5:
                 org_img = random_brightness(org_img)  
             
             img, boxes = padding(org_img, boxes)
             
-            # img = org_img
-            
             if self.augmentation :
                 if random.random() < 0.5:
-                    img, boxes = random_resize(img, boxes)
+                    if random.random() < 0.5:
+                        img, boxes = random_zoomout(img, boxes)
+                    else:
+                        img, boxes = random_zoomin(img, boxes)
+
+                if random.random() < 0.5:
+                    img = random_shuffle_rgb(img)
+                         
                 if random.random() < 0.5:
                     img, boxes = random_translate(img, boxes)
-                  
+                
             
             # augmentation_method = np.random.choice(self.augmentation)
             # if augmentation_method == 'patch':

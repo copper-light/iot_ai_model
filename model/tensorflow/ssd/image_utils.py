@@ -188,38 +188,6 @@ def padding(img, boxes = None, constant_values = 144, pad_type = 'constant'):
 
 #     return patch[0], ious[0]
 
-def random_resize(img, boxes):
-    w, h = img.size
-    xy1_gap = min(min(boxes[:, 0]), min(boxes[:, 1]))
-    xy2_gap = min(min(w - boxes[:, 2]), min(h - boxes[:, 3]))
-    gap = min(xy1_gap, xy2_gap)
-
-    # zoom in
-    if random.random() < 0.5:
-        ratio = random.uniform(0.1, 0.9)
-        gap = gap * ratio
-
-        pixel_x = int(w * gap)
-        pixel_y = int(h * gap)
-        
-        img = img.crop((pixel_x, pixel_y, w-pixel_y, h-pixel_y))
-        pixel_x = - pixel_x
-        pixel_y = - pixel_y
-    else: # zoom out
-        ratio = random.uniform(0.1, 0.5)
-        gap = gap * ratio
-
-        pixel_x = int(w * gap)
-        pixel_y = int(h * gap)
-        
-        np_img = np.array(img)
-        np_img = np.pad(np_img, ((pixel_y, pixel_y), (pixel_x,pixel_x), (0,0)), mode='reflect')
-        img = Image.fromarray(np_img)
-        
-    new_w, new_h = img.size
-    boxes = (boxes * [w, h, w, h] + [pixel_x, pixel_y, pixel_x, pixel_y]) / [new_w, new_h, new_w, new_h]    
-    return img, boxes
-
 def random_brightness(img, factor = (0.5, 1.7)):
     enhancer = ImageEnhance.Brightness(img)
 
@@ -233,6 +201,74 @@ def random_brightness(img, factor = (0.5, 1.7)):
 
     return img
 
+def random_zoomout(img, boxes):
+    w, h = img.size
+    xy1_gap = min(min(boxes[:, 0]), min(boxes[:, 1]))
+    xy2_gap = min(min(w - boxes[:, 2]), min(h - boxes[:, 3]))
+    gap = min(xy1_gap, xy2_gap)
+
+    ratio = random.uniform(0.1, 0.5)
+    gap = gap * ratio
+
+    pixel_x = int(w * gap)
+    pixel_y = int(h * gap)
+    
+    np_img = np.array(img)
+    np_img = np.pad(np_img, ((pixel_y, pixel_y), (pixel_x,pixel_x), (0,0)), mode='reflect')
+    img = Image.fromarray(np_img)
+    
+    new_w, new_h = img.size
+    boxes = (boxes * [w, h, w, h] + [pixel_x, pixel_y, pixel_x, pixel_y]) / [new_w, new_h, new_w, new_h]    
+    return img, boxes
+
+def random_zoomin(img, boxes, max_ratio = 0.8):
+    # radio = random.uniform(0.05, 0.95)
+    w, h = img.size
+    # print(w,h)
+    boxes = boxes * [w, h, w, h]
+    img = np.array(img)
+    
+    box_x1 = min(boxes[:, 0])
+    box_y1 = min(boxes[:, 1])
+    box_x2 = max(boxes[:, 2])
+    box_y2 = max(boxes[:, 3])
+    
+    box_w = box_x2 - box_x1
+    box_h = box_y2 - box_y1
+    
+    if box_w > box_h:
+        ratio = box_w / w
+    else:
+        ratio = box_h / h
+        
+    ratio = random.uniform(ratio, max(ratio, max_ratio))
+    
+    new_w = (w * ratio)
+    new_img_x1 = random.uniform(max(box_x2 - new_w, 0), box_x1)
+    new_img_x2 = new_img_x1 + new_w
+    
+    new_h = (h * ratio)
+    new_img_y1 = random.uniform(max(box_y2 - new_h, 0), box_y1)
+    new_img_y2 = new_img_y1 + new_h
+    
+    new_boxes = boxes - [new_img_x1, new_img_y1, new_img_x1, new_img_y1]
+    new_img_y1, new_img_y2, new_img_x1, new_img_x2 = int(new_img_y1), int(new_img_y2), int(new_img_x1), int(new_img_x2)
+
+    new_img = img[new_img_y1:new_img_y2, new_img_x1:new_img_x2, :]
+    
+    # cv_img =cv2.cvtColor(new_img, cv2.COLOR_RGB2BGR)
+    
+    # for box in new_boxes:
+    #     print(box)
+    #     box = box.astype(np.int)
+    #     output_img = cv2.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), (0,0,255), 2)
+    # plt.figure(figsize=(10, 10))
+    # plt.imshow(output_img)
+    # plt.show()
+
+    new_boxes = new_boxes / [new_w, new_h, new_w, new_h]
+    new_img = Image.fromarray(new_img)
+    return new_img, new_boxes
 
 def random_translate(img, boxes):
     w, h = img.size
@@ -259,6 +295,14 @@ def random_translate(img, boxes):
     boxes = (boxes + [left - new_x, top - new_y, left - new_x, top - new_y]) / [w, h, w, h]
     return img, boxes
 
+def random_shuffle_rgb(img):
+    np_img = np.array(img)
+    if np.random.random() > 0.5: # BGR
+        np_img = np_img[:,:,[2,1,0]]
+    else: # GRB
+        np_img = np_img[:,:,[1,0,2]]
+    img = Image.fromarray(np_img)
+    return img
 
 def random_patching(img, boxes, labels):
     """ Function to apply random patching
